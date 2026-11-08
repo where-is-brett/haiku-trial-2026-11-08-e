@@ -12,17 +12,19 @@ export class NotAStatementError extends Error {
   }
 }
 
-const HEADER = 'Date,Description,Amount';
+const HEADER_FIELDS = ['Date', 'Description', 'Amount'];
 // A number with optional thousands groups and decimals: 1234.50 or 1,234.50.
 const NUMBER = '(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?';
 // Either money out in brackets, or a signed number. A lone bracket or a decimal comma is refused.
 const AMOUNT_PATTERN = new RegExp(`^(?:\\(${NUMBER}\\)|-?${NUMBER})$`);
 
-// Splits one CSV line into fields. A quote opens quoting only at the start of a field.
+// Splits one CSV line into fields. A quote opens quoting only at the start of a field;
+// after its closing quote only spaces may follow before the comma, and a quote left open is refused.
 function splitCsvLine(line) {
   const fields = [];
   let field = '';
   let quoted = false;
+  let closed = false;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (quoted) {
@@ -31,8 +33,17 @@ function splitCsvLine(line) {
         i++;
       } else if (ch === '"') {
         quoted = false;
+        closed = true;
       } else {
         field += ch;
+      }
+    } else if (closed) {
+      if (ch === ',') {
+        fields.push(field);
+        field = '';
+        closed = false;
+      } else if (ch.trim() !== '') {
+        throw new NotAStatementError();
       }
     } else if (ch === '"' && field.trim() === '') {
       field = '';
@@ -44,6 +55,7 @@ function splitCsvLine(line) {
       field += ch;
     }
   }
+  if (quoted) throw new NotAStatementError();
   fields.push(field);
   return fields;
 }
@@ -67,7 +79,8 @@ export function readStatement(text) {
     .split(/\r?\n/)
     .filter((line) => line.trim() !== '');
   if (lines.length === 0) throw new NotAStatementError();
-  if (splitCsvLine(lines[0]).map((f) => f.trim()).join(',') !== HEADER) {
+  const header = splitCsvLine(lines[0]).map((f) => f.trim());
+  if (header.length !== HEADER_FIELDS.length || header.some((f, i) => f !== HEADER_FIELDS[i])) {
     throw new NotAStatementError();
   }
   return lines.slice(1).map((line) => {

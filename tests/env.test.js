@@ -36,6 +36,7 @@ function freePort() {
 }
 
 // Starts src/server.js with the given environment and resolves once it reports its port.
+// A child that exits first rejects with the Node error code it printed, if it printed one.
 function startServer(env) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [serverPath], { env: { ...process.env, ...env } });
@@ -49,7 +50,11 @@ function startServer(env) {
     child.stderr.on('data', (chunk) => {
       err += chunk;
     });
-    child.on('exit', (code) => reject(new Error(`server exited with ${code}: ${err}`)));
+    child.on('exit', (code) => {
+      const error = new Error(`server exited with ${code}: ${err}`);
+      error.code = /code: '(\w+)'/.exec(err)?.[1];
+      reject(error);
+    });
   });
 }
 
@@ -58,16 +63,21 @@ test('server.js listens on PORT and opens the database at LEDGER_DB', async (t) 
   const dbFile = path.join(dir, 'ledger.db');
   let server;
   let port;
-  try {
-    port = await freePort();
-    server = await startServer({ PORT: String(port), LEDGER_DB: dbFile });
-  } catch (error) {
-    fs.rmSync(dir, { recursive: true, force: true });
-    if (/EPERM/.test(error.message)) {
-      t.skip('local port binding is refused in this sandbox');
-      return;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      port = await freePort();
+      server = await startServer({ PORT: String(port), LEDGER_DB: dbFile });
+      break;
+    } catch (error) {
+      // Another process can take the port between freePort() and the child's bind; try a new one.
+      if (error.code === 'EADDRINUSE' && attempt < 3) continue;
+      fs.rmSync(dir, { recursive: true, force: true });
+      if (error.code === 'EPERM') {
+        t.skip('local port binding is refused in this sandbox');
+        return;
+      }
+      throw error;
     }
-    throw error;
   }
   try {
     assert.equal(server.port, port, 'server listened on the PORT it was given');

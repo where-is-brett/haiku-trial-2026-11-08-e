@@ -35,6 +35,11 @@ test('a real leap day is read', () => {
   assert.equal(rows[0].date, '2028-02-29');
 });
 
+test('a leap day in year 0 is read as the proleptic calendar has it', () => {
+  const rows = readStatement(`${HEADER}\n29/02/0000,x,1.00`);
+  assert.equal(rows[0].date, '0000-02-29');
+});
+
 test('a quote in the middle of a field is an ordinary character', () => {
   const rows = readStatement(`${HEADER}\n06/08/2026,Tom "Bob" Smith,10.00\n05/08/2026,5" Pipe Co,10.00`);
   assert.deepEqual(rows.map((row) => row.description), ['Tom "Bob" Smith', '5" Pipe Co']);
@@ -66,6 +71,9 @@ for (const [label, text] of [
   ['an impossible date', `${HEADER}\n32/13/2026,x,1.00`],
   ['a day past the end of the month', `${HEADER}\n31/02/2026,x,1.00`],
   ['a leap day in a common year', `${HEADER}\n29/02/2026,x,1.00`],
+  ['text after a closing quote', `${HEADER}\n06/08/2026,Shop, "1"0.00`],
+  ['a quote left open at the end of the line', `${HEADER}\n06/08/2026,Shop,"6.50`],
+  ['a header whose columns are quoted together', 'Date,"Description,Amount"\n03/08/2026,Kestrel Coffee Bar,6.50'],
   ['a text amount', `${HEADER}\n01/08/2026,x,abc`],
   ['a decimal comma in quotes', `${HEADER}\n03/08/2026,x,"6,50"`],
   ['an unclosed bracket', `${HEADER}\n15/09/2026,x,(40.00`],
