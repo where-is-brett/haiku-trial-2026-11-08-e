@@ -3,7 +3,7 @@
 // Reads an amount from a statement as whole cents.
 export function parseAmount(text) {
   const trimmed = String(text).trim();
-  const negative = trimmed.startsWith('-');
+  const negative = trimmed.startsWith('-') || (trimmed.startsWith('(') && trimmed.endsWith(')'));
   const digits = trimmed.replace(/[^0-9.]/g, '');
   const cents = Math.round(parseFloat(digits) * 100);
   return negative ? -cents : cents;
