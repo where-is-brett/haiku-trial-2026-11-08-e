@@ -24,11 +24,13 @@ test('importing the same file again skips every row', () => {
   assert.equal(count(db), rows);
 });
 
-test('an identical line twice in one file is stored once', () => {
+test('two identical lines in one file are both stored, and re-importing skips both', () => {
   const db = openLedger(':memory:');
   const text = `${HEADER}\n03/08/2026,Kestrel Coffee Bar,6.50\n03/08/2026,Kestrel Coffee Bar,6.50`;
-  assert.deepEqual(importStatement(db, text), { added: 1, skipped: 1 });
-  assert.equal(count(db), 1);
+  assert.deepEqual(importStatement(db, text), { added: 2, skipped: 0 });
+  assert.equal(count(db), 2);
+  assert.deepEqual(importStatement(db, text), { added: 0, skipped: 2 });
+  assert.equal(count(db), 2);
 });
 
 test('a file with a bad row after good rows stores nothing', () => {

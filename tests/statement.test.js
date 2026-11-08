@@ -25,6 +25,16 @@ test('a comma inside quotes stays in the description', () => {
   assert.deepEqual(rows, [{ date: '2026-08-06', description: 'Pasta, Pizza & Co REF 3946', cents: 10229 }]);
 });
 
+test('a quote in the middle of a field is an ordinary character', () => {
+  const rows = readStatement(`${HEADER}\n06/08/2026,Tom "Bob" Smith,10.00\n05/08/2026,5" Pipe Co,10.00`);
+  assert.deepEqual(rows.map((row) => row.description), ['Tom "Bob" Smith', '5" Pipe Co']);
+});
+
+test('a thousands separator inside quotes is read as cents', () => {
+  const rows = readStatement(`${HEADER}\n05/08/2026,Rent,"1,234.50"`);
+  assert.equal(rows[0].cents, 123450);
+});
+
 test('a bracketed amount is money coming back', () => {
   const rows = readStatement(`${HEADER}\n15/09/2026,Marlowe Homewares REFUND,(40.00)`);
   assert.equal(rows[0].cents, -4000);
@@ -44,7 +54,10 @@ for (const [label, text] of [
   ['a wrong header', 'Date,Payee,Amount\n03/08/2026,Kestrel Coffee Bar,6.50'],
   ['a dashed date', `${HEADER}\n31-08-2026,x,1.00`],
   ['an impossible date', `${HEADER}\n32/13/2026,x,1.00`],
+  ['a day past the end of the month', `${HEADER}\n31/02/2026,x,1.00`],
   ['a text amount', `${HEADER}\n01/08/2026,x,abc`],
+  ['a decimal comma in quotes', `${HEADER}\n03/08/2026,x,"6,50"`],
+  ['an unclosed bracket', `${HEADER}\n15/09/2026,x,(40.00`],
   ['a row with two fields', `${HEADER}\n01/08/2026,x`],
   ['an empty file', ''],
   ['plain text', 'hello world'],

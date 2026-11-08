@@ -39,6 +39,16 @@ test('a file that is not a statement gets a plain error and stores nothing', asy
   assert.equal(count(db), 0);
 });
 
+test('a file with a good row and then a bad row stores nothing from that upload', async () => {
+  const db = openLedger(':memory:');
+  const handler = createHandler(db);
+  await multipartRequest(handler, '/import', statementForm(sample));
+  const mixed = 'Date,Description,Amount\n03/08/2026,New Shop,6.50\n31-08-2026,x,1.00';
+  const res = await multipartRequest(handler, '/import', statementForm(mixed));
+  assert.equal(res.status, 400);
+  assert.equal(count(db), 128);
+});
+
 test('a request with no statement file gets the same plain error', async () => {
   const res = await multipartRequest(
     createHandler(openLedger(':memory:')),

@@ -13,9 +13,12 @@ export class NotAStatementError extends Error {
 }
 
 const HEADER = 'Date,Description,Amount';
-const AMOUNT_PATTERN = /^\(?-?\d[\d,]*(\.\d+)?\)?$/;
+// A number with optional thousands groups and decimals: 1234.50 or 1,234.50.
+const NUMBER = '(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?';
+// Either money out in brackets, or a signed number. A lone bracket or a decimal comma is refused.
+const AMOUNT_PATTERN = new RegExp(`^(?:\\(${NUMBER}\\)|-?${NUMBER})$`);
 
-// Splits one CSV line into fields, keeping commas inside double quotes.
+// Splits one CSV line into fields. A quote opens quoting only at the start of a field.
 function splitCsvLine(line) {
   const fields = [];
   let field = '';
@@ -31,7 +34,7 @@ function splitCsvLine(line) {
       } else {
         field += ch;
       }
-    } else if (ch === '"') {
+    } else if (ch === '"' && field === '') {
       quoted = true;
     } else if (ch === ',') {
       fields.push(field);
@@ -44,13 +47,15 @@ function splitCsvLine(line) {
   return fields;
 }
 
-// Accepts 'DD/MM/YYYY' with a real month and day.
+// Accepts 'DD/MM/YYYY' for a day that exists in that month.
 function isDate(text) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text);
   if (!match) return false;
   const day = Number(match[1]);
   const month = Number(match[2]);
-  return month >= 1 && month <= 12 && day >= 1 && day <= 31;
+  const year = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 // Reads a bank statement CSV into rows. Throws NotAStatementError on any bad line.
