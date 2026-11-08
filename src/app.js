@@ -57,7 +57,17 @@ export function createHandler(db) {
       const url = new URL(req.url, 'http://localhost');
       if (url.pathname === '/') {
         const { n } = db.prepare('SELECT COUNT(*) AS n FROM transactions').get();
-        send(res, 200, n === 0 ? '<p>Nothing imported yet</p>' : `<p>${n} transactions imported</p>`);
+        if (n === 0) {
+          send(res, 200, '<p>Nothing imported yet</p>');
+          return;
+        }
+        const months = db
+          .prepare('SELECT DISTINCT substr(date, 1, 7) AS month FROM transactions ORDER BY month DESC')
+          .all();
+        const links = months
+          .map(({ month }) => `<li><a href="/month?m=${month}">${month}</a></li>`)
+          .join('\n');
+        send(res, 200, `<p>${n} transactions imported</p>\n<ul>\n${links}\n</ul>`);
         return;
       }
       if (url.pathname === '/import' && req.method === 'GET') {
