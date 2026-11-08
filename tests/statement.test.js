@@ -25,6 +25,16 @@ test('a comma inside quotes stays in the description', () => {
   assert.deepEqual(rows, [{ date: '2026-08-06', description: 'Pasta, Pizza & Co REF 3946', cents: 10229 }]);
 });
 
+test('a quoted description after a space is read as one field', () => {
+  const rows = readStatement(`${HEADER}\n06/08/2026, "Pasta, Pizza & Co",114.32`);
+  assert.deepEqual(rows, [{ date: '2026-08-06', description: 'Pasta, Pizza & Co', cents: 11432 }]);
+});
+
+test('a real leap day is read', () => {
+  const rows = readStatement(`${HEADER}\n29/02/2028,x,1.00`);
+  assert.equal(rows[0].date, '2028-02-29');
+});
+
 test('a quote in the middle of a field is an ordinary character', () => {
   const rows = readStatement(`${HEADER}\n06/08/2026,Tom "Bob" Smith,10.00\n05/08/2026,5" Pipe Co,10.00`);
   assert.deepEqual(rows.map((row) => row.description), ['Tom "Bob" Smith', '5" Pipe Co']);
@@ -55,6 +65,7 @@ for (const [label, text] of [
   ['a dashed date', `${HEADER}\n31-08-2026,x,1.00`],
   ['an impossible date', `${HEADER}\n32/13/2026,x,1.00`],
   ['a day past the end of the month', `${HEADER}\n31/02/2026,x,1.00`],
+  ['a leap day in a common year', `${HEADER}\n29/02/2026,x,1.00`],
   ['a text amount', `${HEADER}\n01/08/2026,x,abc`],
   ['a decimal comma in quotes', `${HEADER}\n03/08/2026,x,"6,50"`],
   ['an unclosed bracket', `${HEADER}\n15/09/2026,x,(40.00`],

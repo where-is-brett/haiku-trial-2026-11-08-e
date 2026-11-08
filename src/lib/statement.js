@@ -34,7 +34,8 @@ function splitCsvLine(line) {
       } else {
         field += ch;
       }
-    } else if (ch === '"' && field === '') {
+    } else if (ch === '"' && field.trim() === '') {
+      field = '';
       quoted = true;
     } else if (ch === ',') {
       fields.push(field);
@@ -54,7 +55,8 @@ function isDate(text) {
   const day = Number(match[1]);
   const month = Number(match[2]);
   const year = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
   return date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 

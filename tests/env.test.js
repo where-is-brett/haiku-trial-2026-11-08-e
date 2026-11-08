@@ -3,12 +3,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readConfig } from '../src/config.js';
 import { openLedger } from '../src/lib/ledger.js';
 
-const serverPath = new URL('../src/server.js', import.meta.url).pathname;
+const serverPath = fileURLToPath(new URL('../src/server.js', import.meta.url));
 
 test('PORT and LEDGER_DB are read from the environment', () => {
   assert.deepEqual(readConfig({ PORT: '8080', LEDGER_DB: ':memory:' }), {
@@ -20,6 +22,18 @@ test('PORT and LEDGER_DB are read from the environment', () => {
 test('without them the port is 3000 and the database is ledger.db', () => {
   assert.deepEqual(readConfig({}), { port: 3000, dbPath: 'ledger.db' });
 });
+
+// Asks the OS for a free local port, then releases it.
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+}
 
 // Starts src/server.js with the given environment and resolves once it reports its port.
 function startServer(env) {
@@ -43,9 +57,12 @@ test('server.js listens on PORT and opens the database at LEDGER_DB', async (t) 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledger-'));
   const dbFile = path.join(dir, 'ledger.db');
   let server;
+  let port;
   try {
-    server = await startServer({ PORT: '0', LEDGER_DB: dbFile });
+    port = await freePort();
+    server = await startServer({ PORT: String(port), LEDGER_DB: dbFile });
   } catch (error) {
+    fs.rmSync(dir, { recursive: true, force: true });
     if (/EPERM/.test(error.message)) {
       t.skip('local port binding is refused in this sandbox');
       return;
@@ -53,7 +70,9 @@ test('server.js listens on PORT and opens the database at LEDGER_DB', async (t) 
     throw error;
   }
   try {
-    const res = await fetch(`http://127.0.0.1:${server.port}/`);
+    assert.equal(server.port, port, 'server listened on the PORT it was given');
+    assert.ok(fs.existsSync(dbFile), 'server created the database at LEDGER_DB');
+    const res = await fetch(`http://127.0.0.1:${port}/`);
     assert.equal(res.status, 200);
     const db = openLedger(dbFile);
     const table = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'transactions'").get();
