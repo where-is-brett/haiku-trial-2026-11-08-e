@@ -1,0 +1,45 @@
+{
+  "v": 1,
+  "criticalAreas": [],
+  "ciFiles": [],
+  "mcpServers": [],
+  "webDomains": [],
+  "routing": {
+    "frontDesk": "claude-haiku-5-5",
+    "foreman": "claude-haiku-5-5",
+    "builder": "claude-haiku-5-5",
+    "reviewer": "claude-haiku-5-5",
+    "reviewerCritical": "claude-haiku-5-5",
+    "tester": "claude-haiku-5-5",
+    "mechanical": "claude-haiku-5-5",
+    "feature": "claude-haiku-5-5",
+    "builderCritical": "claude-haiku-5-5"
+  },
+  "sessionMode": "acceptEdits",
+  "buildCommands": [
+    "npm test",
+    "npm run",
+    "node"
+  ],
+  "watcherShape": 1,
+  "hotFiles": [
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "**/migrations/**"
+  ],
+  "flagFiles": [],
+  "pages": [],
+  "liveData": true,
+  "testCommand": "npm test",
+  "checks": {
+    "prepare": "npm ci"
+  },
+  "tiers": {
+    "pins": {
+      "mostCapable": "claude-haiku-5-5",
+      "midSized": "claude-haiku-5-5"
+    }
+  }
+}
